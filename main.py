@@ -16,7 +16,7 @@ from kivy.graphics import Color, RoundedRectangle, Line
 from kivy.utils import get_color_from_hex
 
 # --- CONFIGURACIÓN VISUAL ---
-Window.size = (400, 700)
+# Window.size = (400, 700) # <--- CORRECCIÓN: Comentamos o borramos esta línea para que la app ocupe toda la pantalla en el móvil.
 # Paleta de colores refinada
 COLOR_FONDO = get_color_from_hex('#F5F5F5')
 COLOR_PRIMARIO = get_color_from_hex('#2196F3')
