@@ -22,23 +22,34 @@ jobs:
       - name: Descargando el repositorio
         uses: actions/checkout@v4
 
-      # Paso 2: Ejecutar la acción de Buildozer
-      # Esta es una "acción" pre-hecha por la comunidad que instala todo lo necesario
-      # y ejecuta Buildozer por ti.
+      # --- PASO AÑADIDO PARA EL CACHÉ ---
+      # Este paso intenta restaurar el caché de Buildozer de una ejecución anterior.
+      # Si lo encuentra, las descargas del SDK/NDK serán casi instantáneas.
+      - name: Cache de las dependencias de Buildozer
+        uses: actions/cache@v4
+        with:
+          # La carpeta que queremos guardar y restaurar
+          path: ~/.buildozer
+          # Una "llave" única para identificar este caché. 
+          # Si el archivo buildozer.spec cambia, la llave cambia y se crea un caché nuevo.
+          key: ${{ runner.os }}-buildozer-v1-${{ hashFiles('buildozer.spec') }}
+          # Una llave de restauración por si no hay una coincidencia exacta.
+          restore-keys: |
+            ${{ runner.os }}-buildozer-v1-
+
+      # Paso 3: Ejecutar la acción de Buildozer
       - name: Compilar con Buildozer
         uses: ArtemSBulgakov/buildozer-action@v1
         id: buildozer # Le damos un ID a este paso para poder referenciarlo después
         with:
-          # El comando que se ejecutará. Es el mismo que usábamos localmente.
+          # El comando que se ejecutará.
           command: buildozer android debug
 
-      # Paso 3: Subir el APK generado como un "artefacto"
-      # Esto hace que el archivo .apk se pueda descargar desde la página de la acción.
+      # Paso 4: Subir el APK generado como un "artefacto"
       - name: Subir APK como artefacto
         uses: actions/upload-artifact@v4
         with:
           # El nombre que tendrá el paquete descargable
           name: mi-apk
-          # La ruta donde se encuentra el APK generado. 
-          # La acción de Buildozer nos da la ruta exacta como una "salida".
+          # La ruta donde se encuentra el APK generado.
           path: ${{ steps.buildozer.outputs.filename }}
