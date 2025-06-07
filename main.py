@@ -1,252 +1,329 @@
-# main.py
-import kivy
-import webbrowser
-import json
 import os
-from kivy.app import App
+import json
+import webbrowser
+from kivy.lang import Builder
+from kivy.clock import Clock
 from kivy.core.window import Window
-from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.floatlayout import FloatLayout
-from kivy.uix.scrollview import ScrollView
-from kivy.uix.button import Button
-from kivy.uix.popup import Popup
-from kivy.uix.textinput import TextInput
-from kivy.uix.label import Label
-from kivy.graphics import Color, RoundedRectangle, Line
-from kivy.utils import get_color_from_hex
+from kivy.properties import NumericProperty, StringProperty, BooleanProperty
+from kivymd.app import MDApp
+from kivymd.uix.dialog import MDDialog
+from kivymd.uix.button import MDFlatButton, MDRaisedButton, MDIconButton, MDFillRoundFlatButton
+from kivymd.uix.card import MDCard
+from kivymd.uix.list import TwoLineAvatarIconListItem, OneLineAvatarIconListItem
+from kivymd.uix.textfield import MDTextField
+from kivymd.uix.boxlayout import MDBoxLayout
+from kivymd.uix.snackbar import MDSnackbar
 
-# --- CONFIGURACIÓN VISUAL ---
-# Window.size = (400, 700) # <--- CORRECCIÓN: Comentamos o borramos esta línea para que la app ocupe toda la pantalla en el móvil.
-# Paleta de colores refinada
-COLOR_FONDO = get_color_from_hex('#F5F5F5')
-COLOR_PRIMARIO = get_color_from_hex('#2196F3')
-COLOR_SECUNDARIO = get_color_from_hex('#4CAF50')
-COLOR_ALERTA = get_color_from_hex('#F44336')
-COLOR_TEXTO_CLARO = get_color_from_hex('#FFFFFF')
-COLOR_TEXTO_OSCURO = get_color_from_hex('#212121')
-COLOR_HINT_TEXT = get_color_from_hex('#BDBDBD')
-COLOR_FONDO_INPUT = get_color_from_hex('#EEEEEE')
-COLOR_BOTON_RUTA = get_color_from_hex('#FFFFFF') # Botones de ruta blancos para mejor contraste
 
-class MapLauncherApp(App):
-    """
-    Aplicación Kivy mejorada para guardar y lanzar rutas de Google Maps
-    con una interfaz elegante y la capacidad de añadir rutas dinámicamente.
-    """
-    def build(self):
-        """
-        Construye la interfaz principal de la aplicación.
-        """
-        self.title = "Mis Rutas"
-        self.rutas_guardadas = {}
-        self.archivo_datos = "rutas_data.json"
+Window.size = (400, 700)
 
-        root_layout = FloatLayout()
-        Window.clearcolor = COLOR_FONDO
-
-        self.rutas_layout = BoxLayout(orientation='vertical', size_hint_y=None, spacing=15, padding=(20, 20, 20, 100))
-        self.rutas_layout.bind(minimum_height=self.rutas_layout.setter('height'))
-
-        scroll_view = ScrollView(size_hint=(1, 1))
-        scroll_view.add_widget(self.rutas_layout)
-        root_layout.add_widget(scroll_view)
-
-        # --- Botón Flotante de Añadir (+) con MEJOR CONTRASTE ---
-        add_button = Button(
-            text='+',
-            font_size='45sp', # Aumentado para mejor visibilidad
-            bold=True,        # Símbolo en negrita
-            color=COLOR_TEXTO_CLARO, # Color de texto blanco explícito
-            size_hint=(None, None),
-            size=(65, 65),
-            pos_hint={'right': 0.95, 'bottom': 0.05},
-            background_color=(0,0,0,0)
-        )
-        add_button.bind(on_press=self.mostrar_popup_anadir)
-        
-        with add_button.canvas.before:
-            Color(*COLOR_SECUNDARIO)
-            RoundedRectangle(size=add_button.size, pos=add_button.pos, radius=[32.5])
-        add_button.bind(pos=self.actualizar_canvas_redondo, size=self.actualizar_canvas_redondo)
-
-        root_layout.add_widget(add_button)
-        
-        return root_layout
+KV_STRING = """
+<RouteListItem>:
+    style: "elevated"
+    radius: 16
+    padding: "8dp"
+    on_release: app.launch_route(root.route_url)
     
-    def on_start(self):
-        self.cargar_rutas()
-        self.actualizar_lista_rutas()
+    TwoLineAvatarIconListItem:
+        text: root.route_name
+        secondary_text: root.route_url_short
+        _no_ripple_effect: True
 
-    def actualizar_canvas_redondo(self, instance, value):
-        instance.canvas.before.clear()
-        with instance.canvas.before:
-            Color(*instance.color if hasattr(instance, 'color') else COLOR_SECUNDARIO)
-            RoundedRectangle(size=instance.size, pos=instance.pos, radius=[min(instance.size)/2])
+        IconLeftWidget:
+            icon: "map-marker-distance"
 
-    def actualizar_canvas_rect(self, instance, value):
-        instance.canvas.before.clear()
-        with instance.canvas.before:
-            Color(*instance.bg_color)
-            RoundedRectangle(size=instance.size, pos=instance.pos, radius=[15])
-            # Añade un borde si es un botón de ruta (fondo blanco)
-            if instance.bg_color == COLOR_BOTON_RUTA:
-                Color(*COLOR_HINT_TEXT)
-                Line(rounded_rectangle=(instance.x+1, instance.y+1, instance.width-2, instance.height-2, 15), width=1.2)
+        IconRightWidget:
+            icon: "pencil-outline"
+            on_release: app.go_to_edit_screen(root.route_id)
 
-    def cargar_rutas(self):
-        if os.path.exists(self.archivo_datos):
-            try:
-                with open(self.archivo_datos, 'r') as f:
-                    self.rutas_guardadas = json.load(f)
-            except (json.JSONDecodeError, FileNotFoundError):
-                self.rutas_guardadas = {}
-        else:
-            self.rutas_guardadas = {}
+<MDTextFieldWithButton>:
+    orientation: 'horizontal'
+    adaptive_height: True
+    spacing: "10dp"
+    
+    MDTextField:
+        id: text_field
+        hint_text: root.hint_text
+        helper_text: root.helper_text
+        helper_text_mode: "on_focus"
+        mode: "round"
+        size_hint_x: 0.85
 
-    def guardar_rutas(self):
-        with open(self.archivo_datos, 'w') as f:
-            json.dump(self.rutas_guardadas, f, indent=4)
+    MDIconButton:
+        icon: 'clipboard-paste-outline'
+        pos_hint: {'center_y': 0.5}
+        on_release: app.paste_from_clipboard()
+        
+ScreenManager:
+    id: screen_manager
+    MainScreen:
+        name: "main_screen"
+    EditScreen:
+        name: "edit_screen"
+    SettingsScreen:
+        name: "settings_screen"
 
-    def actualizar_lista_rutas(self):
-        self.rutas_layout.clear_widgets()
-        if not self.rutas_guardadas:
-            label_vacio = Label(
-                text="Aún no tienes rutas.\n¡Añade una con el botón '+'!",
-                font_size='18sp',
-                color=COLOR_HINT_TEXT,
-                size_hint_y=None,
-                height=400,
-                halign='center'
-            )
-            self.rutas_layout.add_widget(label_vacio)
-        else:
-            # Ordenar las rutas alfabéticamente por nombre
-            sorted_rutas = sorted(self.rutas_guardadas.items())
-            for nombre, url in sorted_rutas:
-                self.anadir_widget_ruta(nombre, url)
+<MainScreen@MDScreen>:
+    MDBoxLayout:
+        orientation: 'vertical'
+        MDTopAppBar:
+            title: "Trayectos"
+            elevation: 4
+            left_action_items: [["cog-outline", lambda x: app.go_to_settings_screen()]]
+            right_action_items: [["sort-alphabetical-ascending", lambda x: app.sort_routes()]]
             
-    def anadir_widget_ruta(self, nombre, url):
-        btn = Button(
-            text=nombre,
-            font_size='20sp',
-            bold=True,  # Letra en negrita
-            size_hint_y=None,
-            height=80,
-            background_color=(0,0,0,0),
-            color=COLOR_TEXTO_OSCURO, # Letra en color negro
-            halign='center',
-            valign='middle',
-            text_size=(Window.width - 80, None)
-        )
-        btn.bind(on_press=lambda instance, url=url: self.abrir_link(url))
-        
-        btn.bg_color = COLOR_BOTON_RUTA # Fondo blanco para el botón
-        with btn.canvas.before:
-            Color(*btn.bg_color)
-            RoundedRectangle(size=btn.size, pos=btn.pos, radius=[15])
-        
-        btn.bind(pos=self.actualizar_canvas_rect, size=self.actualizar_canvas_rect)
-        
-        if self.rutas_layout.children and isinstance(self.rutas_layout.children[0], Label):
-            self.rutas_layout.clear_widgets()
+        MDFloatLayout:
+            MDLabel:
+                id: empty_label
+                text: "No tienes trayectos guardados.\\n¡Añade uno con el botón +!"
+                halign: "center"
+                theme_text_color: "Secondary"
+                font_style: "H6"
+                opacity: 0
+                pos_hint: {'center_y': .5}
+                
+            RecycleView:
+                id: recycle_view
+                key_viewclass: 'viewclass'
+                key_size: 'height'
+                bar_width: "10dp"
+                
+                RecycleBoxLayout:
+                    padding: "12dp"
+                    default_size: None, dp(90)
+                    default_size_hint: 1, None
+                    size_hint_y: None
+                    height: self.minimum_height
+                    orientation: 'vertical'
+                    spacing: "12dp"
 
-        self.rutas_layout.add_widget(btn)
+            MDFloatingActionButton:
+                icon: "plus"
+                pos_hint: {"center_x": .9, "center_y": .1}
+                md_bg_color: app.theme_cls.primary_color
+                on_release: app.go_to_add_screen()
 
-    def mostrar_popup_anadir(self, instance):
-        popup_layout = BoxLayout(orientation='vertical', spacing=15, padding=20)
-        
-        nombre_input = TextInput(hint_text='Nombre de la ruta (ej. Supermercado)', multiline=False, font_size='18sp', background_color=(0,0,0,0), foreground_color=COLOR_TEXTO_OSCURO, cursor_color=COLOR_TEXTO_OSCURO, padding=[15, 15, 15, 15])
-        url_input = TextInput(hint_text='Pega aquí el link de Google Maps', multiline=False, font_size='18sp', background_color=(0,0,0,0), foreground_color=COLOR_TEXTO_OSCURO, cursor_color=COLOR_TEXTO_OSCURO, padding=[15, 15, 15, 15])
+<EditScreen@MDScreen>:
+    MDBoxLayout:
+        orientation: 'vertical'
+        MDTopAppBar:
+            title: "Añadir / Editar Trayecto"
+            elevation: 2
+            left_action_items: [["arrow-left", lambda x: app.go_to_main_screen()]]
+        MDBoxLayout:
+            orientation: 'vertical'
+            padding: "24dp"
+            spacing: "24dp"
+            adaptive_height: True
+            pos_hint: {"top": 1}
+            MDTextField:
+                id: route_name
+                hint_text: "Nombre del Trayecto"
+                helper_text: "Ej: Camino a casa"
+                helper_text_mode: "on_focus"
+                icon_right: "text-box-outline"
+                mode: "round"
+                max_text_length: 50
+            MDTextFieldWithButton:
+                id: url_field_custom
+                hint_text: "URL de Google Maps"
+                helper_text: "Pega aquí el enlace de la ruta"
+        MDFloatLayout:
+            MDFillRoundFlatButton:
+                text: "GUARDAR TRAYECTO"
+                pos_hint: {'center_x': .5, 'center_y': .6}
+                padding: "32dp", "12dp"
+                on_release: app.save_route()
+            MDTextButton:
+                id: delete_button
+                text: "Eliminar"
+                theme_text_color: "Error"
+                pos_hint: {'center_x': .5, 'center_y': .4}
+                on_release: app.show_delete_dialog()
 
-        for inp in [nombre_input, url_input]:
-            with inp.canvas.before:
-                Color(*COLOR_FONDO_INPUT)
-                RoundedRectangle(pos=inp.pos, size=inp.size, radius=[10])
-            inp.bind(pos=self.actualizar_input_canvas, size=self.actualizar_input_canvas)
+# NUEVO: Pantalla de Ajustes
+<SettingsScreen@MDScreen>:
+    MDBoxLayout:
+        orientation: 'vertical'
+        MDTopAppBar:
+            title: "Ajustes"
+            elevation: 2
+            left_action_items: [["arrow-left", lambda x: app.go_to_main_screen()]]
+    
+        MDBoxLayout:
+            padding: "24dp"
+            
+            OneLineAvatarIconListItem:
+                text: "Modo Oscuro"
+                
+                IconLeftWidget:
+                    icon: "theme-light-dark"
+                
+                MDListItemTrailingIcon:
+                    MDSwitch:
+                        id: theme_switch
+                        active: app.is_dark_mode
+                        on_active: app.set_theme(self.active)
 
-        botones_layout = BoxLayout(spacing=10, size_hint_y=None, height=50)
-        btn_guardar = self.crear_boton_popup('Guardar', COLOR_SECUNDARIO)
-        btn_cancelar = self.crear_boton_popup('Cancelar', COLOR_ALERTA)
+"""
 
-        botones_layout.add_widget(btn_guardar)
-        botones_layout.add_widget(btn_cancelar)
-        
-        popup_layout.add_widget(Label(text='Añadir Nueva Ruta', font_size='22sp', color=COLOR_TEXTO_OSCURO, size_hint_y=None, height=40))
-        popup_layout.add_widget(nombre_input)
-        popup_layout.add_widget(url_input)
-        popup_layout.add_widget(botones_layout)
-        
-        popup = Popup(
-            title='',
-            separator_height=0,
-            content=popup_layout,
-            size_hint=(0.9, 0.6),
-            auto_dismiss=False,
-            background_color=COLOR_FONDO,
-            background='atlas://data/images/defaulttheme/bubble'
-        )
-        
-        btn_guardar.bind(on_press=lambda x: self.anadir_nueva_ruta(nombre_input.text, url_input.text, popup))
-        btn_cancelar.bind(on_press=popup.dismiss)
-        
-        popup.open()
+class RouteListItem(MDCard):
+    route_id = NumericProperty()
+    route_name = StringProperty()
+    route_url_short = StringProperty()
+    route_url = StringProperty()
 
-    def actualizar_input_canvas(self, instance, value):
-        instance.canvas.before.clear()
-        with instance.canvas.before:
-            Color(*COLOR_FONDO_INPUT)
-            RoundedRectangle(pos=instance.pos, size=instance.size, radius=[10])
-            Color(*COLOR_HINT_TEXT)
-            Line(rounded_rectangle=(instance.x, instance.y, instance.width, instance.height, 10), width=1.2)
+class MDTextFieldWithButton(MDBoxLayout):
+    hint_text = StringProperty()
+    helper_text = StringProperty()
 
+class TrayectosApp(MDApp):
+    current_route_id = -1
+    dialog = None
+    sort_ascending = True
+    is_dark_mode = BooleanProperty(False)
 
-    def crear_boton_popup(self, text, color):
-        btn = Button(text=text, background_color=(0,0,0,0), font_size='18sp', color=COLOR_TEXTO_CLARO, bold=True)
-        btn.bg_color = color
-        btn.bind(pos=self.actualizar_canvas_rect, size=self.actualizar_canvas_rect)
-        return btn
+    def build(self):
+        # El tema se carga desde el archivo de ajustes
+        self.title = "Trayectos"
+        return Builder.load_string(KV_STRING)
 
-    def anadir_nueva_ruta(self, nombre, url, popup):
-        if not nombre.strip() or not url.strip():
-            self.mostrar_popup_mensaje("¡Atención!", "El nombre y la URL no pueden estar vacíos.")
-            return
+    def on_start(self):
+        self.routes_data_file = os.path.join(self.user_data_dir, "routes_data.json")
+        self.settings_file = os.path.join(self.user_data_dir, "settings.json")
+        self.load_settings()
+        self.load_routes()
+        Clock.schedule_once(lambda dt: self.refresh_routes_list())
+        Window.bind(on_keyboard=self.handle_back_button)
 
-        self.rutas_guardadas[nombre] = url
-        self.guardar_rutas()
-        self.actualizar_lista_rutas()
-        popup.dismiss()
-
-    def mostrar_popup_mensaje(self, title, message):
-        # Layout del contenido del popup
-        popup_layout = BoxLayout(orientation='vertical', spacing=15, padding=(20, 20, 20, 20))
-        
-        # Widgets internos
-        popup_layout.add_widget(Label(text=title, font_size='22sp', color=COLOR_TEXTO_OSCURO, size_hint_y=None, height=40, bold=True))
-        popup_layout.add_widget(Label(text=message, color=COLOR_TEXTO_OSCURO, font_size='16sp', halign='center'))
-        
-        btn_ok = self.crear_boton_popup('Entendido', COLOR_PRIMARIO)
-        btn_ok.size_hint_y = None
-        btn_ok.height = 50
-        popup_layout.add_widget(btn_ok)
-
-        # Creación del Popup con estilo unificado
-        popup = Popup(
-            title='',
-            separator_height=0,
-            content=popup_layout,
-            size_hint=(0.85, 0.45),
-            auto_dismiss=False,
-            background_color=COLOR_FONDO,
-            background='atlas://data/images/defaulttheme/bubble'
-        )
-        btn_ok.bind(on_press=popup.dismiss)
-        popup.open()
-
-    def abrir_link(self, url):
+    # NUEVO: Carga, guardado y aplicación de ajustes
+    def load_settings(self):
         try:
+            with open(self.settings_file, 'r') as f:
+                settings = json.load(f)
+                self.is_dark_mode = settings.get("is_dark_mode", False)
+        except (FileNotFoundError, json.JSONDecodeError):
+            self.is_dark_mode = False
+        self.theme_cls.theme_style = "Dark" if self.is_dark_mode else "Light"
+        self.theme_cls.primary_palette = "Teal"
+
+    def save_settings(self):
+        with open(self.settings_file, 'w') as f:
+            json.dump({'is_dark_mode': self.is_dark_mode}, f)
+
+    def set_theme(self, active):
+        self.is_dark_mode = active
+        self.theme_cls.theme_style = "Dark" if self.is_dark_mode else "Light"
+        self.save_settings()
+
+    # NUEVO: Gestión del botón "Atrás" de Android
+    def handle_back_button(self, window, key, *args):
+        if key == 27:
+            current_screen = self.root.current
+            if current_screen in ["edit_screen", "settings_screen"]:
+                self.go_to_main_screen()
+                return True
+        return False
+
+    # NUEVO: Snackbar para feedback
+    def show_snackbar(self, text):
+        MDSnackbar(text=text, snackbar_x="10dp", snackbar_y="10dp", size_hint_x=0.9, pos_hint={'center_x': 0.5}).open()
+
+    # NUEVO: Ordenar rutas
+    def sort_routes(self):
+        self.sort_ascending = not self.sort_ascending
+        self.routes_data.sort(key=lambda item: item['name'].lower(), reverse=not self.sort_ascending)
+        self.refresh_routes_list()
+        order = "ascendente" if self.sort_ascending else "descendente"
+        self.show_snackbar(f"Rutas ordenadas de forma {order}")
+
+    def load_routes(self):
+        try:
+            with open(self.routes_data_file, 'r') as f:
+                self.routes_data = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            self.routes_data = []
+
+    def save_routes(self):
+        with open(self.routes_data_file, 'w') as f:
+            json.dump(self.routes_data, f, indent=4)
+
+    def refresh_routes_list(self):
+        recycle_view = self.root.get_screen('main_screen').ids.recycle_view
+        empty_label = self.root.get_screen('main_screen').ids.empty_label
+        if not self.routes_data:
+            empty_label.opacity = 1
+            recycle_view.data = []
+        else:
+            empty_label.opacity = 0
+            recycle_view.data = [{'viewclass': 'RouteListItem', 'route_name': route['name'], 'route_url_short': route['url'][:50] + '...', 'route_id': index, 'route_url': route['url']} for index, route in enumerate(self.routes_data)]
+        recycle_view.refresh_from_data()
+
+    def go_to_main_screen(self):
+        self.root.current = 'main_screen'
+
+    def go_to_add_screen(self):
+        self.current_route_id = -1
+        edit_screen = self.root.get_screen('edit_screen')
+        edit_screen.ids.route_name.text = ""
+        edit_screen.ids.url_field_custom.ids.text_field.text = ""
+        edit_screen.ids.delete_button.opacity = 0
+        edit_screen.ids.delete_button.disabled = True
+        self.root.current = 'edit_screen'
+
+    def go_to_settings_screen(self):
+        self.root.current = 'settings_screen'
+
+    def go_to_edit_screen(self, route_id):
+        self.current_route_id = route_id
+        route = self.routes_data[route_id]
+        edit_screen = self.root.get_screen('edit_screen')
+        edit_screen.ids.route_name.text = route['name']
+        edit_screen.ids.url_field_custom.ids.text_field.text = route['url']
+        edit_screen.ids.delete_button.opacity = 1
+        edit_screen.ids.delete_button.disabled = False
+        self.root.current = 'edit_screen'
+    
+    def paste_from_clipboard(self):
+        clipboard_content = Clipboard.paste()
+        if clipboard_content:
+            self.root.get_screen('edit_screen').ids.url_field_custom.ids.text_field.text = clipboard_content
+            
+    def launch_route(self, url):
+        if url:
             webbrowser.open(url)
-        except Exception as e:
-            self.mostrar_popup_mensaje("Error de Enlace", f"No se pudo abrir la URL.\nError: {e}")
+
+    def save_route(self):
+        edit_screen = self.root.get_screen('edit_screen')
+        name = edit_screen.ids.route_name.text.strip()
+        url = edit_screen.ids.url_field_custom.ids.text_field.text.strip()
+        if not name or not url:
+            self.show_snackbar("El nombre y la URL no pueden estar vacíos")
+            return
+        new_route = {'name': name, 'url': url}
+        if self.current_route_id == -1:
+            self.routes_data.append(new_route)
+        else:
+            self.routes_data[self.current_route_id] = new_route
+        self.save_routes()
+        self.refresh_routes_list()
+        self.show_snackbar(f"Trayecto '{name}' guardado")
+        self.go_to_main_screen()
+
+    def show_delete_dialog(self):
+        if not self.dialog:
+            self.dialog = MDDialog(title="¿Eliminar Trayecto?", text="Esta acción no se puede deshacer.", buttons=[MDFlatButton(text="CANCELAR", on_release=lambda x: self.dialog.dismiss()), MDRaisedButton(text="ELIMINAR", md_bg_color=self.theme_cls.error_color, on_release=lambda x: self.delete_route()),],)
+        self.dialog.open()
+
+    def delete_route(self):
+        if self.dialog:
+            self.dialog.dismiss()
+        if self.current_route_id != -1:
+            route_name = self.routes_data.pop(self.current_route_id)['name']
+            self.save_routes()
+            self.refresh_routes_list()
+            self.show_snackbar(f"Trayecto '{route_name}' eliminado")
+            self.go_to_main_screen()
 
 if __name__ == '__main__':
-    MapLauncherApp().run()
+    TrayectosApp().run()
