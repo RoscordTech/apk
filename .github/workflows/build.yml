@@ -1,0 +1,44 @@
+# Nombre del flujo de trabajo que verás en GitHub
+name: Compilar APK con Buildozer
+
+# Disparadores: Cuándo se debe ejecutar esta acción
+on:
+  # 1. Cada vez que subes código a la rama "main" o "master"
+  push:
+    branches: [ "main", "master" ]
+    
+  # 2. Te permite ejecutarlo manualmente desde la pestaña "Actions" en GitHub
+  workflow_dispatch:
+
+# Tareas a realizar
+jobs:
+  build:
+    # La máquina virtual que usará GitHub para compilar (Ubuntu más reciente)
+    runs-on: ubuntu-latest
+
+    # Secuencia de pasos a seguir
+    steps:
+      # Paso 1: Descargar tu código desde tu repositorio a la máquina virtual
+      - name: Descargando el repositorio
+        uses: actions/checkout@v4
+
+      # Paso 2: Ejecutar la acción de Buildozer
+      # Esta es una "acción" pre-hecha por la comunidad que instala todo lo necesario
+      # y ejecuta Buildozer por ti.
+      - name: Compilar con Buildozer
+        uses: ArtemSBulgakov/buildozer-action@v1
+        id: buildozer # Le damos un ID a este paso para poder referenciarlo después
+        with:
+          # El comando que se ejecutará. Es el mismo que usábamos localmente.
+          command: buildozer android debug
+
+      # Paso 3: Subir el APK generado como un "artefacto"
+      # Esto hace que el archivo .apk se pueda descargar desde la página de la acción.
+      - name: Subir APK como artefacto
+        uses: actions/upload-artifact@v4
+        with:
+          # El nombre que tendrá el paquete descargable
+          name: mi-apk
+          # La ruta donde se encuentra el APK generado. 
+          # La acción de Buildozer nos da la ruta exacta como una "salida".
+          path: ${{ steps.buildozer.outputs.filename }}
