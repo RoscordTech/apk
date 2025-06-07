@@ -1,76 +1,63 @@
 [app]
 
-# (str) Title of your application
+# (requerido) Título de tu aplicación
 title = Trayectos
 
-# (str) Package name
-package.name = myapp
+# (requerido) Nombre del paquete, sin espacios ni caracteres especiales
+package.name = trayectos
 
-# (str) Package domain (needed for android/ios packaging)
+# (requerido) Dominio del paquete, en orden inverso
+# Cámbialo por tu propio dominio, por ejemplo, com.miempresa
 package.domain = org.test
 
-# (str) Source code where the main.py live
+# (requerido) Directorio donde está tu main.py
 source.dir = .
 
-# (list) Source files to include (let empty to include all the files)
-source.include_exts = py,png,jpg,kv,atlas
+# (requerido) Lista de extensiones de archivo a incluir
+source.include_exts = py,png,jpg,kv,atlas,json
 
-# (list) List of exclusions using pattern matching
-#source.exclude_patterns = license,images/*/*.jpg
+# (opcional) Versión de tu aplicación
+version = 1.0
 
-# (str) Application versioning (method 1)
-version = 0.1
+# (requerido) Lista de dependencias de tu aplicación
+# Buildozer se encarga de instalar Kivy. KivyMD es la principal que debemos añadir.
+requirements = python3,kivymd
 
-# (list) Application requirements
-# MODIFICADO: Unificado en una sola línea y añadido setuptools para estabilidad.
-requirements = python3,kivy,sqlite3,setuptools
-
-# (list) Supported orientations
-# Valid options are: landscape, portrait, portrait-reverse or landscape-reverse
+# (opcional) Orientación de la pantalla ('portrait', 'landscape', 'all')
 orientation = portrait
 
-# (bool) Indicate if the application should be fullscreen or not
-fullscreen = 0
+# (opcional) Icono de la aplicación. Debes crear un archivo 'icon.png' de 1024x1024
+icon.filename = %(source.dir)s/icon.png
 
-# (list) Permissions
-# MODIFICADO: Descomentado el permiso de INTERNET, casi siempre necesario.
-android.permissions = android.permission.INTERNET
+# (opcional) Imagen de bienvenida (splash screen)
+presplash.filename = %(source.dir)s/presplash.png
 
-# (int) Target Android API, should be as high as possible.
+# (requerido) Lista de permisos que necesitará tu app en Android
+# INTERNET es necesario para que webbrowser.open() funcione y abra los enlaces.
+android.permissions = INTERNET
+
+# (opcional) Arquitecturas a compilar. arm64-v8a es estándar para móviles modernos.
+android.archs = arm64-v8a
+
+# (opcional) Nivel de API mínimo y objetivo.
+# api 31 es un buen objetivo para Google Play en 2024/2025.
 android.api = 31
-
-# (int) Minimum API your APK / AAB will support.
 android.minapi = 21
 
-# (int) Android SDK version to use
-android.sdk = 25
+# (opcional) Versiones del SDK y NDK de Android. Déjalas como están si no estás seguro.
+# android.sdk = 28
+# android.ndk = 25b
 
-# (str) Android build-tools version to use
-android.build_tools = 31.0.0
+# (opcional) Permite que la app se pueda mover a la tarjeta SD
+android.install_location = auto
 
-# (bool) If True, then automatically accept SDK license
-# agreements.
-# MODIFICADO: Activado para automatizar el proceso y evitar que se detenga.
-android.accept_sdk_license = True
-
-# (list) The Android archs to build for, choices: armeabi-v7a, arm64-v8a, x86, x86_64
-android.archs = arm64-v8a, armeabi-v7a
-
-# (bool) enables Android auto backup feature (Android API >=23)
-android.allow_backup = True
-
-#
-# Python for android (p4a) specific
-#
-
-# AÑADIDO: Corrección para problemas de red con Java en entornos como WSL.
-p4a.java_args = -Djava.net.preferIPv4Stack=true
-
+# (opcional) Evita que la pantalla se apague mientras la app está activa
+android.wakelock = False
 
 [buildozer]
 
-# (int) Log level (0 = error only, 1 = info, 2 = debug (with command output))
+# Nivel de verbosidad de los logs (0, 1, o 2)
 log_level = 2
 
-# (int) Display warning if buildozer is run as root (0 = False, 1 = True)
+# Muestra una advertencia si se usa el archivo spec por defecto (0 o 1)
 warn_on_root = 1
